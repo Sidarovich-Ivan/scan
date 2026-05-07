@@ -5,7 +5,7 @@
       "context": ".",
       "args": {
         "USER_UID": "${localEnv:USER_UID}",
-        "USER_GID": "${localEnv:USER_GID}"
+        "USER_GID": "100"
       }
   },
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
