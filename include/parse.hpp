@@ -1,6 +1,8 @@
 #pragma once
 
+#include <concepts>
 #include <expected>
+#include <iostream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -10,18 +12,92 @@
 
 namespace stdx::details {
 
-// здесь ваш код
+// default
+template <typename T>
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    return std::unexpected(scan_error("Unsupported type."));
+};
 
-// Функция для парсинга значения с учетом спецификатора формата
+template <std::integral T>
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    T value{};
+
+    auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value);
+
+    if (ec == std::errc::invalid_argument)
+        return std::unexpected(scan_error("Invalid integer."));
+
+    if (ec == std::errc::result_out_of_range)
+        return std::unexpected(scan_error("Integer out of range."));
+
+    if (ptr != input.data() + input.size())
+        return std::unexpected(scan_error("Unexpected trailing characters."));
+
+    return value;
+};
+
+template <details::string_type T>
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    if constexpr (std::same_as<T, std::string>)
+        return std::string(input);
+
+    else
+        return input;
+};
+
+template <std::floating_point T>
+std::expected<T, scan_error> parse_value(std::string_view input) {
+    T value{};
+
+    auto [ptr, ec] = std::from_chars(input.data(), input.data() + input.size(), value);
+
+    if (ec == std::errc::invalid_argument)
+        return std::unexpected(scan_error("Invalid floating point number."));
+
+    if (ec == std::errc::result_out_of_range)
+        return std::unexpected(scan_error("Floating point value out of range."));
+
+    if (ptr != input.data() + input.size())
+        return std::unexpected(scan_error("Unexpected trailing characters."));
+
+    return value;
+};
+
 template <typename T>
 std::expected<T, scan_error> parse_value_with_format(std::string_view input, std::string_view fmt) {
-    // здесь ваш код
+
+    if (fmt.empty())
+        return parse_value<T>(input);
+
+    if constexpr (std::unsigned_integral<T>) {
+
+        if (fmt != "%u")
+            return std::unexpected(scan_error("The format does not match unsigned type."));
+    }
+
+    else if constexpr (std::integral<T>) {
+
+        if (fmt != "%d")
+            return std::unexpected(scan_error("The format does not match integral type."));
+    }
+
+    else if constexpr (details::string_type<T>) {
+
+        if (fmt != "%s")
+            return std::unexpected(scan_error("The format does not match string type."));
+    }
+
+    else if constexpr (std::floating_point<T>) {
+
+        if (fmt != "%f")
+            return std::unexpected(scan_error("The format does not match float num type."));
+    }
+
+    return parse_value<T>(input);
 }
 
-// Функция для проверки корректности входных данных и выделения из обеих строк интересующих данных для парсинга
 template <typename... Ts>
-std::expected<std::pair<std::vector<std::string_view>, std::vector<std::string_view>>, scan_error>
-parse_sources(std::string_view input, std::string_view format) {
+std::expected<parse_result, scan_error> parse_sources(std::string_view input, std::string_view format) {
     std::vector<std::string_view> format_parts;  // Части формата между {}
     std::vector<std::string_view> input_parts;
     size_t start = 0;
@@ -70,4 +146,4 @@ parse_sources(std::string_view input, std::string_view format) {
     return std::pair{format_parts, input_parts};
 }
 
-} // namespace stdx::details
+}  // namespace stdx::details
